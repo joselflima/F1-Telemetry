@@ -1,15 +1,16 @@
-FROM python:3.12-alpine
+FROM golang:1.24-alpine
 
 WORKDIR /app
 
 # Instala as dependências.
 RUN apk add --no-cache git make bash
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copia o módulo e todas as dependências do projeto.
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Copia o código da aplicação que será executado.
-COPY src/stream/post_stream_data.py ./post_stream_data.py
+# Copia todo o código-fonte.
+COPY src/ ./src/
 
 # Comando para executar a aplicação quando o container iniciar.
-CMD ["python", "post_stream_data.py"]
+CMD ["go", "run", "./src/stream/"]
