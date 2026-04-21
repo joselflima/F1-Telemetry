@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  f1-telemetry:
+  preprocessor:
     build:
       context: .
-      dockerfile: dockerfiles/Dockerfile.collector
-    container_name: f1-telemetry
+      dockerfile: src/preprocessor/Dockerfile.preprocessor
+    container_name: f1-telemetry-preprocessor
     depends_on:
       - kafka
       - influxdb
@@ -16,16 +16,63 @@ services:
       - "20777:20777/udp"  # Porta UDP para receber os dados do jogo
     environment:
       KAFKA_BROKER: "kafka:9092"
+    restart: unless-stopped
+
+  stream:
+    build:
+      context: .
+      dockerfile: src/stream/Dockerfile.stream
+    container_name: f1-telemetry-stream
+    depends_on:
+      - kafka
+      - influxdb
+    networks:
+      - telemetry_network
+    environment:
+      KAFKA_BROKER: "kafka:9092"
+      KAFKA_TOPIC: "f1-telemetry"
+      KAFKA_STREAM_GROUP_ID: "influxdb-writer-group"
       INFLUXDB_URL: "http://influxdb:8086"
       INFLUXDB_TOKEN: "meu-token-secreto"
       INFLUXDB_ORG: "f1-org"
       INFLUXDB_BUCKET: "f1-bucket"
-      # Adicione as variáveis de ambiente do PostgreSQL se o f1-telemetry precisar se conectar
-      POSTGRES_HOST: "postgres"
-      POSTGRES_DB: "f1db"
-      POSTGRES_USER: "f1user"
-      POSTGRES_PASSWORD: "f1password"
-    restart: unless-stopped
+    restart: on-failure
+
+  buffer:
+    build:
+      context: .
+      dockerfile: src/batch/buffer/Dockerfile.buffer
+    container_name: f1-telemetry-buffer
+    depends_on:
+      - kafka
+      - minio
+    networks:
+      - telemetry_network
+    environment:
+      KAFKA_BROKER: "kafka:9092"
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadminpassword"
+    restart: on-failure
+
+  etl:
+    build:
+      context: .
+      dockerfile: src/batch/etl/Dockerfile.etl
+    container_name: f1-telemetry-etl
+    depends_on:
+      - minio
+      - postgres
+    networks:
+      - telemetry_network
+    environment:
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadminpassword"
+      PG_HOST: "postgres"
+      PG_DB: "f1db"
+      PG_USER: "f1user"
+      PG_PASSWORD: "f1password"
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -85,6 +132,7 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=grafana
+      - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
 
   postgres:
     image: postgres:15-alpine
@@ -116,42 +164,6 @@ services:
     networks:
       - telemetry_network
     restart: unless-stopped
-
-  minio-consumer:
-    build:
-      context: .
-      dockerfile: dockerfiles/Dockerfile.minio
-    container_name: minio-consumer
-    depends_on:
-      - kafka
-      - minio
-    networks:
-      - telemetry_network
-    environment:
-      KAFKA_BROKER: "kafka:9092"
-      MINIO_ENDPOINT: "minio:9000"
-      MINIO_ACCESS_KEY: "minioadmin"
-      MINIO_SECRET_KEY: "minioadminpassword"
-    restart: on-failure
-
-  etl-job:
-    build:
-      context: .
-      dockerfile: dockerfiles/Dockerfile.etl
-    depends_on:
-      - minio
-      - postgres
-    networks:
-      - telemetry_network
-    environment:
-      MINIO_ENDPOINT: "minio:9000"
-      MINIO_ACCESS_KEY: "minioadmin"
-      MINIO_SECRET_KEY: "minioadminpassword"
-      PG_HOST: "postgres"
-      PG_DB: "f1db"
-      PG_USER: "f1user"
-      PG_PASSWORD: "f1password"
-
 
 networks:
   telemetry_network:

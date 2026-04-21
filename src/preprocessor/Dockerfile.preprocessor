@@ -1,0 +1,16 @@
+FROM golang:1.24-alpine
+
+WORKDIR /app
+
+# Instala as dependências.
+RUN apk add --no-cache git make bash
+
+# Copia o módulo e todas as dependências do projeto.
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copia todo o código-fonte.
+COPY src/ ./src/
+
+# Comando para executar a aplicação quando o container iniciar.
+CMD ["go", "run", "./src/preprocessor/"]

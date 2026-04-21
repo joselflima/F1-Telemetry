@@ -1,5 +1,4 @@
-// --- telemetry/telemetry_decoder.go ---
-package telemetry
+package main
 
 import (
 	"bytes"

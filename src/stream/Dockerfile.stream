@@ -1,0 +1,15 @@
+FROM python:3.12-alpine
+
+WORKDIR /app
+
+# Instala as dependências.
+RUN apk add --no-cache git make bash
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copia o código da aplicação que será executado.
+COPY src/stream/post_stream_data.py ./post_stream_data.py
+
+# Comando para executar a aplicação quando o container iniciar.
+CMD ["python", "post_stream_data.py"]

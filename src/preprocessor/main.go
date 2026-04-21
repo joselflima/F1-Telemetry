@@ -2,9 +2,6 @@ package main
 
 import (
 	"context"
-	"joselucas/f1-telemetry/src/handlers"
-	"joselucas/f1-telemetry/src/messaging"
-	"joselucas/f1-telemetry/src/telemetry"
 	"joselucas/f1-telemetry/src/utils"
 	"log"
 	"os"
@@ -16,38 +13,14 @@ import (
 func main() {
 	utils.Logger.Println("Iniciando serviço de telemetria F1...")
 
-	// --- Configurações (Valores do seu docker-compose.yml) ---
-	kafkaBrokers := []string{"kafka:9092"}
-	kafkaTopic := "f1-telemetry"
-	kafkaGroupID := "influxdb-writer-group"
-
-	influxURL := "http://influxdb:8086"
-	influxToken := "meu-token-secreto"
-	influxOrg := "f1-org"
-	influxBucket := "f1-bucket"
+	kafkaProducer := NewKafkaProducer()
+	defer kafkaProducer.Close()
 
 	// --- Contexto para Gerenciamento de Desligamento (Graceful Shutdown) ---
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup // WaitGroup para esperar as goroutines terminarem
 
-	// --- Inicializa o Handler do InfluxDB ---
-	influxHandler := handlers.NewInfluxDBHandler(influxURL, influxToken, influxOrg, influxBucket)
-	defer influxHandler.Close()
-
-	// --- Inicia o Consumidor Kafka em uma Goroutine ---
-	consumer := messaging.NewKafkaConsumer(kafkaBrokers, kafkaTopic, kafkaGroupID, influxHandler)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		consumer.ConsumeInfluxDB(ctx)
-	}()
-	defer consumer.Close()
-
-	// --- Inicia o Produtor e o Listener UDP ---
-	producer := messaging.NewKafkaProducer(kafkaBrokers, kafkaTopic)
-	defer producer.Close()
-
-	conn, err := telemetry.ListenUDP(20777)
+	conn, err := ListenUDP(20777)
 	if err != nil {
 		log.Fatalf("Falha fatal ao iniciar listener UDP: %v", err)
 	}
@@ -72,7 +45,7 @@ func main() {
 					}
 					continue
 				}
-				telemetry.ParseAndPublishPacket(buffer[:n], producer)
+				ParseAndPublishPacket(buffer[:n], kafkaProducer)
 			}
 		}
 	}()

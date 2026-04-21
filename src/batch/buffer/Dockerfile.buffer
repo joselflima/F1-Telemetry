@@ -1,5 +1,5 @@
 # Usa uma imagem base oficial do Python, que é mais adequada para esta tarefa.
-FROM python:3.10-alpine
+FROM python:3.12-alpine
 
 # Define o diretório de trabalho dentro do container.
 WORKDIR /app
@@ -12,7 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia o código da aplicação que será executado.
-COPY src/ /app/src/
+COPY src/batch/buffer/minio_consumer.py ./minio_consumer.py
 
 # Comando para executar a aplicação quando o container iniciar.
-CMD ["python3", "src/messaging/minio_consumer.py"]
+CMD ["python", "minio_consumer.py"]

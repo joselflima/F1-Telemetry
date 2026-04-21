@@ -1,5 +1,4 @@
-// --- telemetry/udp_listener.go ---
-package telemetry
+package main
 
 import (
 	"joselucas/f1-telemetry/src/utils"

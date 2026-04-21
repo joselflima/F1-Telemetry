@@ -1,5 +1,4 @@
-// --- telemetry/telemetry_processor.go ---
-package telemetry
+package main
 
 import (
 	"joselucas/f1-telemetry/src/utils"

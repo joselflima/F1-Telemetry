@@ -1,19 +1,53 @@
-// --- telemetry/packet_handler.go ---
-package telemetry
+package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"encoding/json"
 	"joselucas/f1-telemetry/src/utils"
+	"strconv"
+
+	"github.com/segmentio/kafka-go"
 )
 
-type KafkaProducerInterface interface {
-	PublishTelemetry(data interface{}) error
+const (
+	kafkaHost  = "kafka"
+	kafkaPort  = 9092
+	kafkaTopic = "f1-telemetry"
+)
+
+type KafkaProducer struct {
+	writer *kafka.Writer
+}
+
+func NewKafkaProducer() *KafkaProducer {
+	return &KafkaProducer{
+		writer: &kafka.Writer{
+			Addr:     kafka.TCP(kafkaHost + ":" + strconv.Itoa(kafkaPort)),
+			Topic:    kafkaTopic,
+			Balancer: &kafka.LeastBytes{},
+		},
+	}
+}
+
+func (kp *KafkaProducer) PublishTelemetry(data interface{}) error {
+	payload, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	return kp.writer.WriteMessages(context.Background(), kafka.Message{
+		Value: payload,
+	})
+}
+
+func (kp *KafkaProducer) Close() {
+	kp.writer.Close()
 }
 
 var byteOrder = binary.LittleEndian
 
-func ParseAndPublishPacket(data []byte, producer KafkaProducerInterface) {
+func ParseAndPublishPacket(data []byte, producer *KafkaProducer) {
 	reader := bytes.NewReader(data)
 	var header PacketHeader
 	if err := binary.Read(reader, byteOrder, &header); err != nil {

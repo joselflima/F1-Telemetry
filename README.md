@@ -24,9 +24,9 @@ To get this project up and running, follow these simple steps.
 
 ### Prerequisites
 
-- Docker
+- Docker/Podman
 
-- Docker Compose
+- Docker Compose/Podman Compose
 
 ### Installation
 
@@ -48,16 +48,28 @@ cd f1-telemetry/F1-Telemetry-main
 
 This command will build the Docker images and start all the services defined in the ```docker-compose.yml``` file, including the data collector, Kafka, InfluxDB, PostgreSQL, MinIO, and the real-time consumers.
 
+- Docker:
 ```bash
 docker-compose up --build
+```
+
+- Podman:
+```bash
+podman compose --file docker-compose.yml up --build
 ```
 
 2. **Run the post-race ETL process**:
 
 After you have finished your "race" and data has been collected in the MinIO data lake, run the following command to trigger the ETL job. This will process the data from MinIO and load it into the PostgreSQL data warehouse for further analysis.
 
+- Docker:
 ```bash
 docker-compose run --rm etl-job
+```
+
+- Podman:
+```bash
+podman compose --file docker-compose.yml up --detach
 ```
 
 ## Project Structure
